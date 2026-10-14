@@ -29,3 +29,18 @@ create policy "public reads parts photos" on storage.objects for select to anon,
 create policy "staff uploads parts photos" on storage.objects for insert to authenticated with check (bucket_id='part-photos' and exists(select 1 from public.staff s where s.user_id=auth.uid() and s.role in ('owner','employee')));
 -- IMPORTANT: replace with real owner auth user ID; never expose owner passwords in source code.
 -- insert into public.staff(user_id,role) values ('OWNER-AUTH-UUID-HERE','owner');
+
+-- Donor vehicle profiles: independent of individual part listings.
+create table if not exists public.vehicles (
+ id uuid primary key default gen_random_uuid(),
+ name text not null check(length(name) between 1 and 160),
+ bio text not null default '' check(length(bio)<=5000),
+ photos text[] not null default '{}',
+ status text not null default 'draft' check(status in ('published','draft')),
+ created_at timestamptz not null default now()
+);
+alter table public.vehicles enable row level security;
+create policy "public reads published vehicles" on public.vehicles for select to anon,authenticated using (status='published' or exists(select 1 from public.staff s where s.user_id=auth.uid() and s.role in ('owner','employee')));
+create policy "staff creates vehicles" on public.vehicles for insert to authenticated with check (exists(select 1 from public.staff s where s.user_id=auth.uid() and s.role in ('owner','employee')));
+create policy "staff updates vehicles" on public.vehicles for update to authenticated using (exists(select 1 from public.staff s where s.user_id=auth.uid() and s.role in ('owner','employee'))) with check (exists(select 1 from public.staff s where s.user_id=auth.uid() and s.role in ('owner','employee')));
+create policy "owner deletes vehicles" on public.vehicles for delete to authenticated using (exists(select 1 from public.staff s where s.user_id=auth.uid() and s.role='owner'));

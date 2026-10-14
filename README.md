@@ -30,3 +30,8 @@ Customer clicks Inquire, copies part name, donor vehicle, and listing ID, then o
 ### Limitations
 
 No checkout, payment processing, shipping calculations, or automatic inquiry submissions. No guarantee of parts fitment. Admin photo removal, bulk management, and detailed vehicle normalization are not included in this first version. External Google Fonts and Supabase client script require internet access. The sample catalog is only a demo.
+
+## Version 2: donor vehicle stories
+Owner dashboard now has a separate Donor Vehicles form: free-text vehicle name, biography, up to five photos, and published/draft visibility. Public donor cards display the vehicle photo and story. To associate a part with a vehicle, type the same donor vehicle name in the part listing (matching is currently by exact name; keep spelling consistent). On a **fresh** Supabase project, run the included full schema. On an **existing** V1 project, run only the new `public.vehicles` table and policy statements at the end of `supabase-schema.sql` to avoid duplicate policies.
+
+Homepage headline updated to “Keeping the Cars We Love on the Road.” The owner's exact mission statement remains in the About section.
