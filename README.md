@@ -1,37 +1,35 @@
-# EJ's Upcycling Garage — Vexo Digital
+# EJ's Upcycling Garage — Parts Catalog upgrade
 
-A responsive, black-and-white used Subaru parts website using EJ's actual supplied logo and mission statement. Includes search, categories, donor vehicle browsing, part inquiry copy-to-Facebook, and a mobile-friendly owner inventory manager.
+This replaces the old Donor Yard with **Parts Catalog** and uses the existing Supabase tables: `models`, `generations`, `categories`, `listings`, `listing_photos`, and `inventory_admins`. Original logo, site styling, mission, partners, and Facebook inquiry link remain.
 
-## Important: preview vs live inventory
+## Before publishing
 
-The site works as a static **portfolio preview** immediately, showing four **fictional** sample listings. They are clearly marked as examples. There is no secure admin access or live shared inventory until you connect Supabase. Never advertise the demo listings as real EJ's inventory.
+1. You have already run `ejs-garage-supabase-setup.sql` in your empty Supabase project. Now run **`catalog-update.sql`** in Supabase SQL Editor to combine Exhaust into Engine (9 categories total). Do NOT run the old `supabase-schema.sql` from the prior website.
+2. Confirm Supabase Storage contains the `part-photos` bucket, and RLS is enabled on all inventory tables. The initial SQL sets these up.
+3. In Supabase **Authentication → URL Configuration**, set Site URL to the actual deployed website URL and add its exact URL (and any necessary redirect URLs) to the allow list. For the current GitHub Pages project, confirm the real URL and its trailing slash. Invite/reset links must redirect to the website, not an unconfigured localhost address. An invitation already sent may need to be resent after this is configured.
+4. After the owner accepts the invite, copy their **User UID** from Authentication → Users and run this separately in SQL Editor (replace the UUID):
 
-The owner interface is implemented but intentionally **disabled** without Supabase. GitHub Pages alone cannot provide secure owner logins, shared photo storage, or editable inventory. Do not add passwords to JavaScript or HTML.
+```sql
+insert into public.inventory_admins (user_id)
+values ('PASTE-OWNER-USER-UUID-HERE')
+on conflict (user_id) do nothing;
+```
 
-## Go live with a real database
+This is a trusted SQL Editor action, **not** a browser action. Never put a service-role key in frontend code.
+5. `config.js` contains the project URL and **publishable** key. These are browser-safe only with correctly configured RLS; never add secrets or passwords to this repository.
+6. Upload `index.html`, `styles.css`, `script.js`, `config.js`, and `assets/ejs-logo.jpg` to the **root** of the existing GitHub Pages repository. Keep `catalog-update.sql` and this README for reference; they are not executed by GitHub Pages.
 
-1. Obtain the owner's permission to publish their logo, photos, business details, and inventory. Confirm the mission, partners, Facebook URL, and policies.
-2. Create a Supabase project in an account owned or approved by EJ's. Check free-tier limits and costs.
-3. Create the owner user in Supabase Authentication > Users. Disable public signup if not needed.
-4. Run `supabase-schema.sql` in SQL Editor on a fresh project (review it first). It creates `parts`, `staff`, and a public image bucket with role-based security policies.
-5. Find the owner user's UUID in Authentication > Users and run `insert into public.staff(user_id,role) values ('REAL-UUID','owner');` in SQL Editor.
-6. In `config.js`, set `supabaseUrl` and the **public anon/publishable key** from Project Settings > API. Never use a service_role key, secret key, or password in website files.
-7. Upload the whole folder to GitHub Pages (preserve `assets/ejs-logo.jpg`). Configure Settings > Pages > Deploy from branch > main > root.
-8. Log in via OWNER LOGIN, add a real part with real photos, and verify it appears publicly. Test a sold listing, mobile upload, search, and Facebook inquiry.
+## Features
 
-### Owner workflow
+- Customer navigation: Subaru model → generation/year range → 9 parts categories → available listings.
+- Search, category filter, prices/ranges, listing photos, Facebook inquiry copying.
+- Owner login, draft/published flag, available/pending/sold status, add/edit/delete listings, and upload/remove photos.
+- Public queries only return `is_published = true` and `status = 'available'`; database RLS independently enforces this.
+- JDM year ranges are **approximate** and should be confirmed with EJ's before launch. Individual part fitment must be verified, especially JDM vs USDM.
 
-Owner logs in from a phone, types part name and donor vehicle freely, adds condition and optional price, takes/uploads up to five photos (JPEG/PNG/WebP, max 5 MB each), and chooses Available, Sold, or Draft. Owner can edit listings and mark items sold. Drafts remain private. Photos are stored in a public bucket for customer-visible listings; do not upload sensitive information.
+## Notes
 
-### Facebook inquiries
-
-Customer clicks Inquire, copies part name, donor vehicle, and listing ID, then opens EJ's Facebook page to paste the inquiry. Facebook may require sign-in and does not guarantee Messenger opens automatically. Replace the page URL with EJ's preferred direct Messenger link when confirmed.
-
-### Limitations
-
-No checkout, payment processing, shipping calculations, or automatic inquiry submissions. No guarantee of parts fitment. Admin photo removal, bulk management, and detailed vehicle normalization are not included in this first version. External Google Fonts and Supabase client script require internet access. The sample catalog is only a demo.
-
-## Version 2: donor vehicle stories
-Owner dashboard now has a separate Donor Vehicles form: free-text vehicle name, biography, up to five photos, and published/draft visibility. Public donor cards display the vehicle photo and story. To associate a part with a vehicle, type the same donor vehicle name in the part listing (matching is currently by exact name; keep spelling consistent). On a **fresh** Supabase project, run the included full schema. On an **existing** V1 project, run only the new `public.vehicles` table and policy statements at the end of `supabase-schema.sql` to avoid duplicate policies.
-
-Homepage headline updated to “Keeping the Cars We Love on the Road.” The owner's exact mission statement remains in the About section.
+- This is a **static GitHub Pages frontend**; Supabase is the database, authentication, and photo backend. No checkout/payment processing.
+- The Supabase photo bucket created by the setup SQL is public. Do not upload private images, including to unpublished listings.
+- Owner access is blocked until the `inventory_admins` row exists. Invitation alone does not grant admin privileges.
+- The project has not been deployed or live-tested against your Supabase account from this workspace. Test login, password invitation, public browsing, upload, edit, delete, and permissions on the published site before sharing it with customers.
