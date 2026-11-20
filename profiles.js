@@ -25,7 +25,35 @@ function closeDetail(){current=null;$('profileDetail').hidden=true;$('profileGri
 function showDetail(c,pictures){current=c.id;const detail=$('profileDetail');detail.hidden=false;$('profileGrid').hidden=true;detail.replaceChildren();const wrap=el('div','profile-detail'),back=el('button','profile-back','← ALL CAR PROFILES');back.onclick=closeDetail;wrap.append(back,el('h3','',c.name));const grid=el('div','profile-detail-grid'),left=el('div'),right=el('div');const pics=photos(c.id,pictures),cover=pics.find(p=>p.is_cover)||pics[0];if(!pics.some(p=>p.id===active))active=cover?.id||null;const shown=pics.find(p=>p.id===active)||cover;const main=imageBox(shown,'profile-cover profile-main-photo');left.append(main);const thumbs=el('div','profile-thumbs');pics.forEach(p=>{const b=el('button',p.id===shown?.id?'selected':'');const im=el('img');im.src=url(p.storage_path);im.alt='View vehicle photo';b.append(im);b.onclick=()=>{active=p.id;showDetail(c,pictures)};thumbs.append(b)});left.append(thumbs);const specs=el('div','profile-specs');[['YEAR',c.year],['MODEL',c.model],['ENGINE',c.engine],['DRIVETRAIN',c.drivetrain]].forEach(([k,v])=>{if(!v)return;const box=el('div');box.append(el('small','',k),el('strong','',v));specs.append(box)});right.append(el('span','eyebrow','VEHICLE PROFILE'),el('p','',c.summary||''),specs,el('h3','','VEHICLE HISTORY'),el('p','profile-history',c.history||'No history added yet.'));grid.append(left,right);wrap.append(grid);detail.append(wrap);detail.scrollIntoView({behavior:'smooth',block:'start'})}
 async function authorized(){const {data:{user}}=await db.auth.getUser();if(!user)return false;const {data,error}=await db.from('inventory_admins').select('user_id').eq('user_id',user.id).maybeSingle();return !error&&!!data}
 async function loadOwner(){if(!(await authorized()))return;const [a,b]=await Promise.all([db.from('car_profiles').select('*').order('created_at',{ascending:false}),db.from('car_profile_photos').select('*').order('sort_order')]);if(a.error||b.error){msg((a.error||b.error).message);return}ownerCars=a.data||[];ownerPhotos=b.data||[];await prepareUrls(ownerPhotos);renderOwnerList();renderPhotos()}
-function renderOwnerList(){const list=$('profileAdminList');list.replaceChildren();ownerCars.forEach(c=>{const row=el('div','profile-admin-row'),info=el('div');info.append(el('strong','',c.name),el('p','muted',c.is_published?'Published':'Draft'));const b=el('button','','EDIT');b.type='button';b.onclick=()=>edit(c);row.append(info,b);list.append(row)});if(!ownerCars.length)list.append(el('p','muted','No car profiles yet. Create the first one below.'))}
+function renderOwnerList(){const list=$('profileAdminList');list.replaceChildren();ownerCars.forEach(c=>{const row=el('div','profile-admin-row'),info=el('div');info.append(el('strong','',c.name),el('p','muted',c.is_published?'Published':'Draft'));const actions=el('div','profile-owner-actions'),b=el('button','','EDIT'),del=el('button','danger-button','DELETE');b.type=del.type='button';b.onclick=()=>edit(c);del.onclick=()=>deleteProfile(c);actions.append(b,del);row.append(info,actions);list.append(row)});if(!ownerCars.length)list.append(el('p','muted','No car profiles yet. Create the first one below.'))}
+// Delete the database record first so a failed database delete cannot erase live photos.
+// Storage cleanup is performed only for paths recorded against this exact profile.
+async function deleteProfile(c){
+ if(!(await authorized())){msg('Owner authorization required.');return}
+ const confirmation=prompt(`PERMANENT DELETE\n\nVehicle: ${c.name}\nThis removes the profile and all its photos. This cannot be undone.\n\nType DELETE to confirm:`);
+ if(confirmation!=='DELETE'){if(confirmation!==null)msg('Deletion cancelled: confirmation did not match.');return}
+ const buttons=[...document.querySelectorAll('#profileAdminList button')];buttons.forEach(b=>b.disabled=true);
+ msg('Deleting vehicle profile…');
+ try{
+  const found=await db.from('car_profile_photos').select('storage_path').eq('profile_id',c.id);
+  if(found.error)throw found.error;
+  const paths=(found.data||[]).map(p=>p.storage_path).filter(path=>path.startsWith(c.id+'/'));
+  if(paths.length!==(found.data||[]).length)throw new Error('Unexpected photo path; deletion stopped for review.');
+  const result=await db.from('car_profiles').delete().eq('id',c.id).select('id');
+  if(result.error)throw result.error;
+  if(!result.data?.some(x=>x.id===c.id))throw new Error('Profile was not deleted. Verify owner permissions.');
+  if($('profileId').value===c.id)clear();
+  if(current===c.id)closeDetail();
+  let cleanupError=null;
+  for(let i=0;i<paths.length;i+=100){
+   const r=await db.storage.from('car-profile-photos').remove(paths.slice(i,i+100));
+   if(r.error){cleanupError=r.error;break}
+  }
+  await loadOwner();await loadPublic();
+  msg(cleanupError?'Profile deleted, but some stored photos may remain. Contact the site administrator to clean up the orphaned images: '+cleanupError.message:'Vehicle profile and associated photos deleted.');
+ }catch(e){msg('Deletion stopped: '+(e.message||String(e)));await loadOwner()}
+ finally{buttons.forEach(b=>b.disabled=false)}
+}
 function clear(){ $('profileForm').reset();$('profileId').value='';$('profilePhotoManager').replaceChildren();msg('Ready for a new profile.')}
 function edit(c){$('profileId').value=c.id;for(const [field,key] of [['profileName','name'],['profileYear','year'],['profileModel','model'],['profileEngine','engine'],['profileDrive','drivetrain'],['profileSummary','summary'],['profileHistory','history']])$(field).value=c[key]||'';$('profilePublished').checked=c.is_published;$('profileFiles').value='';renderPhotos();$('profileName').focus();msg('Editing '+c.name+'. Existing published profile stays online while you edit.')}
 function renderPhotos(){const area=$('profilePhotoManager');area.replaceChildren();const id=$('profileId').value;if(!id)return;const list=photos(id);list.forEach((p,i)=>{const row=el('div','profile-photo-row'),im=el('img');im.src=url(p.storage_path);im.alt='Car photo';row.append(im);for(const [label,fn,disabled] of [['COVER',()=>setCover(p),p.is_cover],['←',()=>swap(p,list[i-1]),i===0],['→',()=>swap(p,list[i+1]),i===list.length-1],['REMOVE',()=>remove(p),false]]){const b=el('button','',label);b.type='button';b.disabled=disabled;b.onclick=fn;row.append(b)}if(p.is_cover)row.append(el('span','eyebrow','COVER'));area.append(row)})}
