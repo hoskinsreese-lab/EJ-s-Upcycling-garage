@@ -13,3 +13,25 @@
 <div id="adminPane" hidden><div class="admin-actions"><strong id="adminGreeting">Owner dashboard</strong><button id="signOut" class="small-btn" type="button">Sign out</button></div><form id="partForm" class="stack"><input id="editId" type="hidden"><label>Part name *<input id="partName" required maxlength="160" placeholder="e.g. JDM EJ20 turbocharger"></label><div class="two-col"><label>Subaru model *<select id="partModel" required></select></label><label>Generation / year range *<select id="partGeneration" required></select></label></div><label>Category *<select id="partCategory" required></select></label><div class="two-col"><label>Minimum price (USD) *<input id="priceMin" type="number" required min="0" step="0.01" placeholder="150"></label><label>Maximum price (USD) *<input id="priceMax" type="number" required min="0" step="0.01" placeholder="250"></label></div><label>Description<textarea id="partDescription" rows="3" maxlength="5000" placeholder="Part details, what's included..."></textarea></label><label>Condition notes<textarea id="conditionNotes" rows="2" maxlength="2000" placeholder="Used condition, damage, etc."></textarea></label><label>Fitment notes<textarea id="fitmentNotes" rows="2" maxlength="2000" placeholder="Confirm compatibility; JDM and USDM can differ."></textarea></label><label>Upload photos (up to 5 at a time, 10 MB each)<input id="partPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></label><div id="existingPhotos" class="photo-manage"></div><div class="two-col"><label>Status<select id="partStatus"><option value="available">Available</option><option value="pending">Pending</option><option value="sold">Sold</option></select></label><label class="check-label">Publish publicly<input id="partPublished" type="checkbox"></label></div><button class="btn btn-dark" type="submit" id="savePart">SAVE LISTING ↗</button><button id="resetForm" type="button" class="small-btn">Clear form</button></form><h4>Manage listings</h4><div id="adminListings"></div><hr><div id="profileAdmin"><h4>Car Profiles</h4><p class="muted">Add or edit profiles without taking published cars offline.</p><div id="profileAdminList"></div><form id="profileForm" class="stack"><input id="profileId" type="hidden"><label>Vehicle name *<input id="profileName" required maxlength="160"></label><div class="two-col"><label>Year<input id="profileYear" maxlength="12"></label><label>Model<input id="profileModel" maxlength="120"></label></div><div class="two-col"><label>Engine<input id="profileEngine" maxlength="120"></label><label>Drivetrain<input id="profileDrive" maxlength="120"></label></div><label>Short description<textarea id="profileSummary" maxlength="800" rows="2"></textarea></label><label>History and dated build updates<textarea id="profileHistory" maxlength="12000" rows="6"></textarea></label><label>Add vehicle photos (JPEG, PNG, WebP; 10 MB each)<input id="profileFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple></label><div id="profilePhotoManager" class="profile-photo-manager"></div><label class="check-label">Publish publicly<input id="profilePublished" type="checkbox"></label><button class="btn btn-dark" id="profileSave" type="submit">SAVE CAR PROFILE ↗</button><button class="small-btn" id="profileClear" type="button">NEW / CLEAR FORM</button></form><p id="profileAdminMessage" role="status" class="muted"></p></div></div><p id="adminMessage" role="status" class="muted"></p></dialog>
 <dialog id="passwordDialog" class="modal"><form method="dialog"><button class="close" aria-label="Close">×</button></form><span class="eyebrow">ACCOUNT SETUP</span><h3>Set your password</h3><p>Choose a new password for your EJ's Garage owner account.</p><form id="passwordForm" class="stack"><label>New password<input id="newPassword" type="password" minlength="12" required autocomplete="new-password"></label><button class="btn btn-dark" type="submit">SAVE PASSWORD</button></form><p id="passwordMessage" role="status"></p></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script><script src="config.js" defer></script><script src="script.js" defer></script><script src="profiles.js" defer></script></body></html>
+
+<script>
+(() => {
+  const url = new URL(window.location.href);
+  let changed = false;
+
+  for (const key of [...url.searchParams.keys()]) {
+    if (key.toLowerCase().startsWith("utm_")) {
+      url.searchParams.delete(key);
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    window.history.replaceState(
+      window.history.state,
+      "",
+      url.pathname + url.search + url.hash
+    );
+  }
+})();
+</script>
